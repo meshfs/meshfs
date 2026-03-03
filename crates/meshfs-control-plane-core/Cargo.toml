@@ -1,0 +1,27 @@
+[package]
+name = "meshfs-control-plane-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+hmac.workspace = true
+http.workspace = true
+meshfs-store = { path = "../meshfs-store" }
+meshfs-types = { path = "../meshfs-types" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rusqlite.workspace = true
+tokio.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokio = { version = "1", default-features = false, features = ["sync", "time"] }

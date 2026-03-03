@@ -1,0 +1,25 @@
+[package]
+name = "meshfs-control-plane"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+http.workspace = true
+meshfs-control-plane-core = { path = "../meshfs-control-plane-core" }
+meshfs-store = { path = "../meshfs-store" }
+meshfs-types = { path = "../meshfs-types" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+tower = { workspace = true, features = ["util"] }
