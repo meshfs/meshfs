@@ -1,0 +1,26 @@
+[package]
+name = "meshfs-control-plane-runtime-cloudflare-workers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+async-trait.workspace = true
+base64.workspace = true
+bytes.workspace = true
+console_error_panic_hook = "0.1"
+futures.workspace = true
+http.workspace = true
+meshfs-control-plane-core = { path = "../meshfs-control-plane-core" }
+meshfs-store = { path = "../meshfs-store" }
+meshfs-types = { path = "../meshfs-types" }
+uuid.workspace = true
+worker = { version = "0.5", features = ["d1"] }
