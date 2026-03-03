@@ -288,9 +288,8 @@ cargo llvm-cov --workspace --lcov --output-path target/coverage/lcov.info
 
 ## License
 
-MIT
+Apache License 2.0 (`Apache-2.0`)
 
 ## Acknowledgement
 
-Respect to the JuiceFS project for advancing the cloud filesystem ecosystem:
-https://github.com/juicedata/juicefs
+Respect to the [JuiceFS](https://github.com/juicedata/juicefs) project for advancing the cloud filesystem ecosystem.
