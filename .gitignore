@@ -1,0 +1,7 @@
+/target
+.DS_Store
+.env
+/deploy/providers/*/node_modules
+/deploy/providers/*/wrangler.generated.jsonc
+/deploy/providers/*/.wrangler
+meshfs-control-plane.db
