@@ -1,0 +1,47 @@
+name: integration-reusable
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Runner label (ubuntu-latest or macos-latest)
+        required: true
+        type: string
+      test-target:
+        description: Integration test target under meshfs-integration-tests
+        required: true
+        type: string
+      artifact-name:
+        description: Uploaded artifact name on failure
+        required: true
+        type: string
+
+jobs:
+  integration:
+    runs-on: ${{ inputs.runs-on }}
+    env:
+      MESHFS_TEST_ARTIFACTS_DIR: ${{ runner.temp }}/meshfs-itest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build integration binaries
+        run: cargo build -p meshfs -p meshfs-control-plane
+
+      - name: Run integration tests
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: cargo test -p meshfs-integration-tests --test ${{ inputs.test-target }} -- --nocapture
+
+      - name: Upload integration diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/meshfs-itest
+          if-no-files-found: ignore

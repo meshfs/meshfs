@@ -1,0 +1,85 @@
+name: minio-integration-reusable
+
+on:
+  workflow_call:
+    inputs:
+      suite:
+        description: Test suite to run (happy or failures)
+        required: true
+        type: string
+      artifact-name:
+        description: Uploaded artifact name on failure
+        required: true
+        type: string
+
+jobs:
+  minio-integration:
+    runs-on: ubuntu-latest
+    env:
+      MESHFS_TEST_ARTIFACTS_DIR: ${{ runner.temp }}/meshfs-itest
+      MESHFS_TEST_MINIO_ENDPOINT: http://127.0.0.1:9000
+      MESHFS_TEST_MINIO_ACCESS_KEY: minioadmin
+      MESHFS_TEST_MINIO_SECRET_KEY: minioadmin
+      MESHFS_TEST_MINIO_BUCKET: meshfs-int
+    services:
+      minio:
+        image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://127.0.0.1:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Prepare MinIO integration environment
+        uses: ./.github/actions/minio-integration-setup
+        with:
+          minio-endpoint: ${{ env.MESHFS_TEST_MINIO_ENDPOINT }}
+          minio-access-key: ${{ env.MESHFS_TEST_MINIO_ACCESS_KEY }}
+          minio-secret-key: ${{ env.MESHFS_TEST_MINIO_SECRET_KEY }}
+          minio-bucket: ${{ env.MESHFS_TEST_MINIO_BUCKET }}
+
+      - name: Run MinIO happy-path integration tests
+        if: ${{ inputs.suite == 'happy' }}
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_ENABLE_MINIO: "1"
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: cargo test -p meshfs-integration-tests --test minio_s3 s3_backend_roundtrip_with_minio -- --nocapture
+
+      - name: Run MinIO failure-case integration tests
+        if: ${{ inputs.suite == 'failures' }}
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_ENABLE_MINIO: "1"
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: |
+          cargo test -p meshfs-integration-tests --test minio_s3 s3_backend_missing_bucket_returns_internal_error_on_commit -- --nocapture
+          cargo test -p meshfs-integration-tests --test minio_s3 s3_backend_invalid_credentials_returns_internal_error_on_commit -- --nocapture
+          cargo test -p meshfs-integration-tests --test minio_s3 s3_backend_unreachable_endpoint_returns_internal_error_on_commit -- --nocapture
+
+      - name: Validate suite input
+        if: ${{ inputs.suite != 'happy' && inputs.suite != 'failures' }}
+        run: |
+          echo "unsupported suite: ${{ inputs.suite }}" >&2
+          exit 1
+
+      - name: Upload integration diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/meshfs-itest
+          if-no-files-found: ignore

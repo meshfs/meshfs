@@ -1,0 +1,67 @@
+name: fuse-smoke-reusable
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Runner label (ubuntu-latest or macos-latest)
+        required: true
+        type: string
+      platform:
+        description: Smoke platform argument for scripts/ci/run_fuse_smoke.sh
+        required: true
+        type: string
+
+jobs:
+  fuse-smoke:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install FUSE prerequisites (Linux)
+        if: ${{ inputs.platform == 'linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse3 libfuse3-dev pkg-config
+
+      - name: Precheck macFUSE availability
+        if: ${{ inputs.platform == 'macos' }}
+        id: macfuse_check
+        run: |
+          if [ ! -d /Library/Filesystems/macfuse.fs ]; then
+            echo "macFUSE not installed on this runner; skipping job"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install pkg-config (macOS)
+        if: ${{ inputs.platform == 'macos' && steps.macfuse_check.outputs.available == 'true' }}
+        run: brew install pkgconf
+
+      - name: Build FUSE binaries (Linux)
+        if: ${{ inputs.platform == 'linux' }}
+        run: cargo build -p meshfs --features fuse -p meshfs-control-plane
+
+      - name: Build FUSE binaries (macOS)
+        if: ${{ inputs.platform == 'macos' && steps.macfuse_check.outputs.available == 'true' }}
+        run: cargo build -p meshfs --features fuse -p meshfs-control-plane
+
+      - name: Run FUSE smoke test (Linux)
+        if: ${{ inputs.platform == 'linux' }}
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: scripts/ci/run_fuse_smoke.sh linux
+
+      - name: Run FUSE smoke test (macOS)
+        if: ${{ inputs.platform == 'macos' && steps.macfuse_check.outputs.available == 'true' }}
+        env:
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: scripts/ci/run_fuse_smoke.sh macos

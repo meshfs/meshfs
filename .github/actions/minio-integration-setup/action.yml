@@ -1,0 +1,53 @@
+name: minio-integration-setup
+description: Prepare MinIO-backed integration test environment
+
+inputs:
+  minio-endpoint:
+    description: MinIO endpoint URL
+    required: false
+    default: http://127.0.0.1:9000
+  minio-access-key:
+    description: MinIO access key
+    required: false
+    default: minioadmin
+  minio-secret-key:
+    description: MinIO secret key
+    required: false
+    default: minioadmin
+  minio-bucket:
+    description: Bucket name for integration tests
+    required: false
+    default: meshfs-int
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for MinIO
+      shell: bash
+      run: |
+        for _ in $(seq 1 60); do
+          if curl -fsS "${{ inputs.minio-endpoint }}/minio/health/live" >/dev/null; then
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "MinIO failed to become healthy" >&2
+        exit 1
+
+    - name: Install AWS CLI
+      shell: bash
+      run: pip3 install --user awscli
+
+    - name: Create bucket for integration tests
+      shell: bash
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.minio-access-key }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.minio-secret-key }}
+        AWS_DEFAULT_REGION: us-east-1
+      run: |
+        export PATH="$HOME/.local/bin:$PATH"
+        aws --endpoint-url "${{ inputs.minio-endpoint }}" s3 mb "s3://${{ inputs.minio-bucket }}" || true
+
+    - name: Build integration binaries
+      shell: bash
+      run: cargo build -p meshfs -p meshfs-control-plane

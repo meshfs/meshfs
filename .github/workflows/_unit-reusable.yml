@@ -1,0 +1,45 @@
+name: unit-reusable
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Runner label (ubuntu-latest or macos-latest)
+        required: true
+        type: string
+      run-format-check:
+        description: Whether to run cargo fmt check
+        required: false
+        default: false
+        type: boolean
+      run-deploy-help:
+        description: Whether to run deploy command help smoke checks
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  unit:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Format check
+        if: ${{ inputs.run-format-check }}
+        run: cargo fmt --all -- --check
+
+      - name: Cargo check
+        run: cargo check --workspace
+
+      - name: Unit tests
+        run: cargo test --workspace --exclude meshfs-integration-tests
+
+      - name: Deploy command help
+        if: ${{ inputs.run-deploy-help }}
+        run: |
+          cargo run -p meshfs -- deploy --help
+          cargo run -p meshfs -- deploy cloudflare-workers-free-tier --help

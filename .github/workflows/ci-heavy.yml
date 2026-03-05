@@ -22,82 +22,22 @@ jobs:
   fuse-linux-smoke:
     name: fuse-linux-smoke
     if: ${{ github.event_name == 'schedule' || inputs.run_fuse_linux }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install FUSE prerequisites (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fuse3 libfuse3-dev pkg-config
-
-      - name: Build FUSE binaries
-        run: cargo build -p meshfs --features fuse -p meshfs-control-plane
-
-      - name: Run FUSE smoke test
-        env:
-          MESHFS_TEST_STRICT: "1"
-          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
-          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
-        run: scripts/ci/run_fuse_smoke.sh linux
+    uses: ./.github/workflows/_fuse-smoke-reusable.yml
+    with:
+      runs-on: ubuntu-latest
+      platform: linux
 
   fuse-macos-smoke:
     name: fuse-macos-smoke
     if: ${{ github.event_name == 'schedule' || inputs.run_fuse_macos }}
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Precheck macFUSE availability
-        id: macfuse_check
-        run: |
-          if [ ! -d /Library/Filesystems/macfuse.fs ]; then
-            echo "macFUSE not installed on this runner; skipping job"
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "available=true" >> "$GITHUB_OUTPUT"
-
-      - name: Install pkg-config
-        if: steps.macfuse_check.outputs.available == 'true'
-        run: brew install pkgconf
-
-      - name: Build FUSE binaries
-        if: steps.macfuse_check.outputs.available == 'true'
-        run: cargo build -p meshfs --features fuse -p meshfs-control-plane
-
-      - name: Run FUSE smoke test
-        if: steps.macfuse_check.outputs.available == 'true'
-        env:
-          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
-          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
-        run: scripts/ci/run_fuse_smoke.sh macos
+    uses: ./.github/workflows/_fuse-smoke-reusable.yml
+    with:
+      runs-on: macos-latest
+      platform: macos
 
   apple-containerization-smoke:
     name: apple-containerization-smoke
     if: ${{ github.event_name == 'schedule' || inputs.run_apple_containerization }}
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build integration binaries
-        run: cargo build -p meshfs -p meshfs-control-plane
-
-      - name: Run Apple containerization smoke
-        env:
-          MESHFS_TEST_STRICT: "1"
-          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
-          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
-        run: scripts/ci/run_apple_containerization_smoke.sh
+    uses: ./.github/workflows/_apple-containerization-smoke-reusable.yml
+    with:
+      runs-on: macos-latest
