@@ -1921,11 +1921,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
+ "futures",
+ "meshfs-types",
  "reqwest",
  "rusqlite",
  "serde_json",
  "tempfile",
  "tokio",
+ "tokio-tungstenite 0.24.0",
 ]
 
 [[package]]

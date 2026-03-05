@@ -19,7 +19,7 @@ async fn cli_login_and_sync_once_materializes_remote_file() -> anyhow::Result<()
     let home_dir = tempdir().context("create home dir")?;
     let sync_target = tempdir().context("create sync target")?;
 
-    let server = RunningServer::start(&bins.server_bin, ServerConfig::default()).await?;
+    let mut server = RunningServer::start(&bins.server_bin, ServerConfig::default()).await?;
 
     run_meshfs(
         &bins.client_bin,
@@ -57,6 +57,7 @@ async fn cli_login_and_sync_once_materializes_remote_file() -> anyhow::Result<()
         .with_context(|| format!("read synced file after sync once: {}", synced.display()))?;
     assert_eq!(bytes, b"one");
 
+    server.finish_ok();
     Ok(())
 }
 
@@ -65,7 +66,7 @@ async fn unauthorized_request_is_rejected() -> anyhow::Result<()> {
     let Some(bins) = BinaryPaths::resolve_or_skip()? else {
         return Ok(());
     };
-    let server = RunningServer::start(&bins.server_bin, ServerConfig::default()).await?;
+    let mut server = RunningServer::start(&bins.server_bin, ServerConfig::default()).await?;
 
     let response = reqwest::Client::new()
         .get(format!("{}/plans/current", server.base_url))
@@ -74,6 +75,7 @@ async fn unauthorized_request_is_rejected() -> anyhow::Result<()> {
         .context("plans/current request")?;
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    server.finish_ok();
     Ok(())
 }
 
@@ -82,7 +84,7 @@ async fn refresh_and_logout_flow_rotates_and_revokes_refresh_token() -> anyhow::
     let Some(bins) = BinaryPaths::resolve_or_skip()? else {
         return Ok(());
     };
-    let server = RunningServer::start(&bins.server_bin, ServerConfig::default()).await?;
+    let mut server = RunningServer::start(&bins.server_bin, ServerConfig::default()).await?;
     let client = reqwest::Client::new();
 
     let (access_token, refresh_token) =
@@ -119,5 +121,6 @@ async fn refresh_and_logout_flow_rotates_and_revokes_refresh_token() -> anyhow::
         .context("refresh request after logout")?;
 
     assert_eq!(second_refresh.status(), StatusCode::UNAUTHORIZED);
+    server.finish_ok();
     Ok(())
 }

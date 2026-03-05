@@ -274,6 +274,7 @@ cargo build -p meshfs -p meshfs-control-plane
 MESHFS_TEST_CLIENT_BIN=target/debug/meshfs \
 MESHFS_TEST_SERVER_BIN=target/debug/meshfs-control-plane \
 cargo test -p meshfs-integration-tests --test core -- --nocapture
+cargo test -p meshfs-integration-tests --test sync_ws_resume -- --nocapture
 ```
 
 Linux MinIO integration:
@@ -287,6 +288,28 @@ MESHFS_TEST_MINIO_BUCKET=meshfs-int \
 MESHFS_TEST_CLIENT_BIN=target/debug/meshfs \
 MESHFS_TEST_SERVER_BIN=target/debug/meshfs-control-plane \
 cargo test -p meshfs-integration-tests --test minio_s3 -- --nocapture
+```
+
+This suite covers both the happy path and failure scenarios (missing bucket, invalid credentials, unreachable endpoint).
+
+Integration test stability knobs:
+
+```bash
+# retry transient CLI failures (default: 2)
+MESHFS_TEST_CLI_MAX_ATTEMPTS=3
+
+# retry transient API helper failures in integration tests (default: 3)
+MESHFS_TEST_API_MAX_ATTEMPTS=4
+
+# place integration server artifacts/logs under a fixed root directory
+# (default root: OS temp dir)
+MESHFS_TEST_ARTIFACTS_DIR=$PWD/target/itest-artifacts
+
+# keep integration server artifacts/logs instead of auto-cleanup on success
+MESHFS_TEST_KEEP_ARTIFACTS=1
+
+# fail fast when binary paths are missing (CI default)
+MESHFS_TEST_STRICT=1
 ```
 
 Coverage summary:
