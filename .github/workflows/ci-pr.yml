@@ -1,0 +1,154 @@
+name: ci-pr
+
+on:
+  pull_request:
+  push:
+
+concurrency:
+  group: ci-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-linux:
+    name: unit-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Cargo check
+        run: cargo check --workspace
+
+      - name: Unit tests
+        run: cargo test --workspace --exclude meshfs-integration-tests
+
+      - name: Deploy command help
+        run: |
+          cargo run -p meshfs -- deploy --help
+          cargo run -p meshfs -- deploy cloudflare-workers-free-tier --help
+
+  unit-macos:
+    name: unit-macos
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo check
+        run: cargo check --workspace
+
+      - name: Unit tests
+        run: cargo test --workspace --exclude meshfs-integration-tests
+
+  integration-linux-core:
+    name: integration-linux-core
+    runs-on: ubuntu-latest
+    needs: unit-linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build integration binaries
+        run: cargo build -p meshfs -p meshfs-control-plane
+
+      - name: Run core integration tests
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: cargo test -p meshfs-integration-tests --test core -- --nocapture
+
+  integration-macos-core:
+    name: integration-macos-core
+    runs-on: macos-latest
+    needs: unit-macos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build integration binaries
+        run: cargo build -p meshfs -p meshfs-control-plane
+
+      - name: Run core integration tests
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: cargo test -p meshfs-integration-tests --test core -- --nocapture
+
+  integration-linux-minio-docker:
+    name: integration-linux-minio-docker
+    runs-on: ubuntu-latest
+    needs: unit-linux
+    services:
+      minio:
+        image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://127.0.0.1:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Wait for MinIO
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "MinIO failed to become healthy" >&2
+          exit 1
+
+      - name: Install AWS CLI
+        run: pip3 install --user awscli
+
+      - name: Create bucket for integration tests
+        env:
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          aws --endpoint-url http://127.0.0.1:9000 s3 mb s3://meshfs-int || true
+
+      - name: Build integration binaries
+        run: cargo build -p meshfs -p meshfs-control-plane
+
+      - name: Run MinIO integration tests
+        env:
+          MESHFS_TEST_STRICT: "1"
+          MESHFS_TEST_ENABLE_MINIO: "1"
+          MESHFS_TEST_MINIO_ENDPOINT: http://127.0.0.1:9000
+          MESHFS_TEST_MINIO_ACCESS_KEY: minioadmin
+          MESHFS_TEST_MINIO_SECRET_KEY: minioadmin
+          MESHFS_TEST_MINIO_BUCKET: meshfs-int
+          MESHFS_TEST_CLIENT_BIN: ${{ github.workspace }}/target/debug/meshfs
+          MESHFS_TEST_SERVER_BIN: ${{ github.workspace }}/target/debug/meshfs-control-plane
+        run: cargo test -p meshfs-integration-tests --test minio_s3 -- --nocapture

@@ -269,3 +269,64 @@ pub struct AuditRecord {
 pub struct AuditListResponse {
     pub events: Vec<AuditRecord>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{DeviceActivateRequest, PlanTier, RetentionPolicy};
+    use serde_json::json;
+
+    #[test]
+    fn retention_policy_presets_match_expected_limits() {
+        let free = RetentionPolicy::free();
+        assert_eq!(free.plan_tier, PlanTier::Free);
+        assert_eq!(free.max_days, 7);
+        assert_eq!(free.max_versions, 20);
+        assert_eq!(free.hard_delete_grace_days, 7);
+
+        let pro = RetentionPolicy::pro();
+        assert_eq!(pro.plan_tier, PlanTier::Pro);
+        assert_eq!(pro.max_days, 30);
+        assert_eq!(pro.max_versions, 200);
+        assert_eq!(pro.hard_delete_grace_days, 30);
+
+        let team = RetentionPolicy::team();
+        assert_eq!(team.plan_tier, PlanTier::Team);
+        assert_eq!(team.max_days, 180);
+        assert_eq!(team.max_versions, 1000);
+        assert_eq!(team.hard_delete_grace_days, 60);
+    }
+
+    #[test]
+    fn plan_tier_uses_snake_case_json_values() {
+        let pro = serde_json::to_string(&PlanTier::Pro).expect("serialize plan tier");
+        let team = serde_json::to_string(&PlanTier::Team).expect("serialize plan tier");
+
+        assert_eq!(pro, "\"pro\"");
+        assert_eq!(team, "\"team\"");
+    }
+
+    #[test]
+    fn device_activate_request_defaults_plan_tier_to_none() {
+        let req: DeviceActivateRequest = serde_json::from_value(json!({
+            "user_code": "abc123",
+            "user_id": "u1",
+            "tenant_id": "t1"
+        }))
+        .expect("deserialize request");
+
+        assert!(req.plan_tier.is_none());
+    }
+
+    #[test]
+    fn device_activate_request_accepts_plan_tier_when_present() {
+        let req: DeviceActivateRequest = serde_json::from_value(json!({
+            "user_code": "abc123",
+            "user_id": "u1",
+            "tenant_id": "t1",
+            "plan_tier": "free"
+        }))
+        .expect("deserialize request");
+
+        assert_eq!(req.plan_tier, Some(PlanTier::Free));
+    }
+}
