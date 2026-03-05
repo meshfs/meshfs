@@ -1,0 +1,104 @@
+name: npm-release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (for example 0.2.0 or v0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-platform:
+    name: npm-platform-${{ matrix.package_suffix }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            package_suffix: linux-x64
+            package_dir: packages/npm/platforms/linux-x64
+            binary_path: target/release/meshfs
+          - os: macos-latest
+            package_suffix: darwin-x64
+            package_dir: packages/npm/platforms/darwin-x64
+            binary_path: target/release/meshfs
+          - os: windows-latest
+            package_suffix: win32-x64
+            package_dir: packages/npm/platforms/win32-x64
+            binary_path: target/release/meshfs.exe
+    env:
+      NPM_RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+
+      - name: Sync npm package versions
+        run: node packages/npm/scripts/set-npm-version.mjs "${NPM_RELEASE_VERSION}"
+
+      - name: Build meshfs binary
+        run: cargo build --release -p meshfs
+
+      - name: Stage platform binary into npm package
+        run: node packages/npm/scripts/stage-platform-binary.mjs "${{ matrix.package_dir }}" "${{ matrix.binary_path }}"
+
+      - name: Verify platform package contents
+        working-directory: ${{ matrix.package_dir }}
+        run: npm pack --dry-run
+
+      - name: Publish platform package
+        working-directory: ${{ matrix.package_dir }}
+        run: npm publish --provenance --access public
+
+  publish-cli:
+    name: npm-cli
+    needs: publish-platform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NPM_RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+
+      - name: Sync npm package versions
+        run: node packages/npm/scripts/set-npm-version.mjs "${NPM_RELEASE_VERSION}"
+
+      - name: Verify CLI package contents
+        working-directory: packages/npm/cli
+        run: npm pack --dry-run
+
+      - name: Publish CLI package
+        working-directory: packages/npm/cli
+        run: npm publish --provenance --access public

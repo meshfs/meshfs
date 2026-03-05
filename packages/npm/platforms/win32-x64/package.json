@@ -1,0 +1,27 @@
+{
+  "name": "@meshfs/cli-win32-x64",
+  "version": "0.0.0-dev",
+  "description": "MeshFS CLI binary for Windows x64",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meshfs/meshfs.git",
+    "directory": "packages/npm/platforms/win32-x64"
+  }
+}

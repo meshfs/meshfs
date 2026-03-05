@@ -1,0 +1,38 @@
+{
+  "name": "@meshfs/cli",
+  "version": "0.0.0-dev",
+  "description": "MeshFS command-line client distributed via npm",
+  "license": "Apache-2.0",
+  "bin": {
+    "meshfs": "bin/meshfs.js"
+  },
+  "main": "lib/resolve-binary.js",
+  "files": [
+    "bin/meshfs.js",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@meshfs/cli-darwin-x64": "0.0.0-dev",
+    "@meshfs/cli-linux-x64": "0.0.0-dev",
+    "@meshfs/cli-win32-x64": "0.0.0-dev"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meshfs/meshfs.git",
+    "directory": "packages/npm/cli"
+  },
+  "keywords": [
+    "meshfs",
+    "cli",
+    "filesystem",
+    "sync"
+  ]
+}

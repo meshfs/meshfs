@@ -1,0 +1,27 @@
+{
+  "name": "@meshfs/cli-darwin-x64",
+  "version": "0.0.0-dev",
+  "description": "MeshFS CLI binary for macOS x64",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meshfs/meshfs.git",
+    "directory": "packages/npm/platforms/darwin-x64"
+  }
+}

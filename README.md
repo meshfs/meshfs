@@ -68,6 +68,20 @@ Cloudflare token permissions required for free-tier setup:
 - Account: `D1:Edit` (unless using `--no-d1`)
 - Account: `Workers R2 Storage:Edit` (unless using `--no-r2`)
 
+## Quick Start with npm
+
+Install CLI package:
+
+```bash
+npm install -g @meshfs/cli
+meshfs --help
+```
+
+Current npm platform packages:
+- Linux x64 (`@meshfs/cli-linux-x64`)
+- macOS x64 (`@meshfs/cli-darwin-x64`)
+- Windows x64 (`@meshfs/cli-win32-x64`)
+
 ## Build from Source
 
 ### Prerequisites
@@ -335,11 +349,13 @@ CI workflows:
 GitHub release automation is defined at:
 
 - `.github/workflows/release.yml`
+- `.github/workflows/npm-release.yml`
 
 When a tag like `v0.1.0` is pushed, the workflow:
 - builds `meshfs` binaries for Linux/macOS/Windows,
 - builds Cloudflare worker prebuilt bundle (`index.js` + `index_bg.wasm`),
 - packages the bundle into release artifacts and embeds it into each platform package.
+- publishes npm CLI packages (`@meshfs/cli` + platform-specific packages) using npm Trusted Publishing.
 
 ## Current OSS Constraints
 

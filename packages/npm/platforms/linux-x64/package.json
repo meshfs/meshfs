@@ -1,0 +1,27 @@
+{
+  "name": "@meshfs/cli-linux-x64",
+  "version": "0.0.0-dev",
+  "description": "MeshFS CLI binary for Linux x64",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meshfs/meshfs.git",
+    "directory": "packages/npm/platforms/linux-x64"
+  }
+}

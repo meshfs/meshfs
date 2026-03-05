@@ -3,3 +3,7 @@
 .env
 
 /docs/tmp/
+/packages/npm/**/node_modules/
+/packages/npm/**/*.tgz
+/packages/npm/platforms/*/bin/meshfs
+/packages/npm/platforms/*/bin/meshfs.exe
