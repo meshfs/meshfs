@@ -1,3 +1,4 @@
+mod deploy;
 #[cfg(feature = "fuse")]
 mod fuse_mount;
 
@@ -7,6 +8,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
+use deploy::{run_deploy, DeployCommand};
 use futures::{SinkExt, StreamExt};
 use meshfs_types::{
     ChangeEvent, ChangeOp, DeviceActivateRequest, DevicePollRequest, DevicePollResponse,
@@ -38,13 +40,13 @@ fn run_fuse_mount(
 ) -> anyhow::Result<()> {
     let _ = (options.allow_other, options.auto_unmount, options.read_only);
     Err(anyhow::anyhow!(
-        "FUSE support is disabled in this build. Rebuild meshfs-client with --features fuse"
+        "FUSE support is disabled in this build. Rebuild meshfs with --features fuse"
     ))
 }
 
 #[derive(Debug, Parser)]
 #[command(name = "meshfs")]
-#[command(about = "MeshFS CLI client")]
+#[command(about = "MeshFS CLI")]
 struct Cli {
     #[arg(long, default_value = "http://127.0.0.1:8787")]
     server: String,
@@ -86,6 +88,10 @@ enum Command {
         once: bool,
         #[arg(long)]
         target: Option<PathBuf>,
+    },
+    Deploy {
+        #[command(subcommand)]
+        provider: DeployCommand,
     },
 }
 
@@ -176,6 +182,9 @@ async fn main() -> anyhow::Result<()> {
                 target,
             )
             .await?;
+        }
+        Command::Deploy { provider } => {
+            run_deploy(&client, provider).await?;
         }
     }
 
@@ -859,7 +868,7 @@ mod tests {
 
     fn unique_temp_dir(name: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!(
-            "meshfs-client-test-{name}-{}",
+            "meshfs-test-{name}-{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("system time")
@@ -1032,14 +1041,14 @@ mod tests {
 
     #[test]
     fn local_path_mapping_is_stable() {
-        let base = std::env::temp_dir().join("meshfs-client-map-test");
+        let base = std::env::temp_dir().join("meshfs-map-test");
         let local = local_path_for_remote(&base, "/docs/a.txt").unwrap();
         assert!(local.ends_with("docs/a.txt"));
     }
 
     #[test]
     fn remove_local_path_works_for_missing_entries() {
-        let missing = std::env::temp_dir().join("meshfs-client-missing-file");
+        let missing = std::env::temp_dir().join("meshfs-missing-file");
         remove_local_by_path(&missing).unwrap();
     }
 

@@ -1,0 +1,143 @@
+name: release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-worker-bundle:
+    name: build-worker-bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install worker-build
+        run: cargo install worker-build --version 0.7.5 --locked
+
+      - name: Build worker bundle
+        run: |
+          set -euo pipefail
+          cd crates/meshfs-control-plane-runtime-cloudflare-workers
+          worker-build --release
+          test -f build/index.js
+          test -f build/index_bg.wasm
+          mkdir -p ../../dist/worker-bundle
+          cp build/index.js ../../dist/worker-bundle/index.js
+          cp build/index_bg.wasm ../../dist/worker-bundle/index_bg.wasm
+          cp build/worker/shim.mjs ../../dist/worker-bundle/shim.mjs
+
+      - name: Upload raw worker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-bundle-files
+          path: dist/worker-bundle/*
+
+      - name: Package worker bundle
+        run: |
+          set -euo pipefail
+          cd dist
+          tar -czf worker-bundle-cloudflare-workers-free-tier.tar.gz worker-bundle
+
+      - name: Upload worker bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-bundle-cloudflare-workers-free-tier
+          path: dist/worker-bundle-cloudflare-workers-free-tier.tar.gz
+
+  build-binaries:
+    name: build-${{ matrix.target }}
+    needs: build-worker-bundle
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: meshfs
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: meshfs
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: meshfs.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download prebuilt worker bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: worker-bundle-files
+          path: prebuilt-worker-bundle
+
+      - name: Build meshfs
+        run: cargo build --release -p meshfs
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          PKG_DIR="meshfs-${{ matrix.target }}"
+          mkdir -p "dist/${PKG_DIR}/deploy/providers/cloudflare-workers-free-tier/worker-bundle"
+          cp "target/release/${{ matrix.bin }}" "dist/${PKG_DIR}/meshfs"
+          cp prebuilt-worker-bundle/index.js "dist/${PKG_DIR}/deploy/providers/cloudflare-workers-free-tier/worker-bundle/index.js"
+          cp prebuilt-worker-bundle/index_bg.wasm "dist/${PKG_DIR}/deploy/providers/cloudflare-workers-free-tier/worker-bundle/index_bg.wasm"
+          cp prebuilt-worker-bundle/shim.mjs "dist/${PKG_DIR}/deploy/providers/cloudflare-workers-free-tier/worker-bundle/shim.mjs"
+          tar -C dist -czf "dist/${PKG_DIR}.tar.gz" "${PKG_DIR}"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $pkgDir = "meshfs-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path "dist/$pkgDir/deploy/providers/cloudflare-workers-free-tier/worker-bundle" | Out-Null
+          Copy-Item "target/release/${{ matrix.bin }}" "dist/$pkgDir/meshfs.exe"
+          Copy-Item "prebuilt-worker-bundle/index.js" "dist/$pkgDir/deploy/providers/cloudflare-workers-free-tier/worker-bundle/index.js"
+          Copy-Item "prebuilt-worker-bundle/index_bg.wasm" "dist/$pkgDir/deploy/providers/cloudflare-workers-free-tier/worker-bundle/index_bg.wasm"
+          Copy-Item "prebuilt-worker-bundle/shim.mjs" "dist/$pkgDir/deploy/providers/cloudflare-workers-free-tier/worker-bundle/shim.mjs"
+          Compress-Archive -Path "dist/$pkgDir" -DestinationPath "dist/$pkgDir.zip" -Force
+
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshfs-${{ matrix.target }}
+          path: dist/*
+
+  publish-release:
+    name: publish-release
+    needs:
+      - build-binaries
+      - build-worker-bundle
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*

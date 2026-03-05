@@ -23,4 +23,4 @@ meshfs-control-plane-core = { path = "../meshfs-control-plane-core" }
 meshfs-store = { path = "../meshfs-store" }
 meshfs-types = { path = "../meshfs-types" }
 uuid.workspace = true
-worker = { version = "0.5", features = ["d1"] }
+worker = { version = "0.7.5", features = ["d1"] }

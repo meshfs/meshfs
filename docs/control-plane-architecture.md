@@ -60,14 +60,15 @@ Provider IDs are deployment presets, not business logic boundaries.
   - Runtime target: `meshfs_control_plane_runtime_cloudflare_workers`
   - Cost target: zero-cost bootstrap
   - Default metadata binding: D1
+  - Provider doc: [providers/cloudflare-workers-free-tier.md](providers/cloudflare-workers-free-tier.md)
 
 ### Future provider presets
 
-- `cloudflare-workers`
-- `selfhost-native`
-- `aws-ecs`
-- `aws-ec2`
-- `gcp-cloud-run`
-- `azure-container-apps`
+- `selfhost-native` ([doc](providers/selfhost-native.md))
+- `cloudflare-containers` ([doc](providers/cloudflare-containers.md))
+- `aws-ecs` ([doc](providers/aws-ecs.md))
+- `aws-ec2` ([doc](providers/aws-ec2.md))
+- `gcp-cloud-run` ([doc](providers/gcp-cloud-run.md))
+- `azure-container-apps` ([doc](providers/azure-container-apps.md))
 
 All future providers are **documentation-only plans** at this stage.

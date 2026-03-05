@@ -11,9 +11,9 @@ Included in this repository:
 
 - Rust workspace with control plane/client/store/type crates.
 - Local development server (`meshfs-control-plane`) and CLI with login + sync support.
-- Provider-oriented deployment structure and scripts (`scripts/deploy-provider.sh`).
+- Provider-oriented deployment structure and unified CLI deployment entry (`meshfs deploy ...`).
 - Cloudflare Workers free-tier provider (`cloudflare-workers-free-tier`) as one optional deployment target.
-- Cloudflare free-tier provider uses D1 metadata by default (auto-provisioned by deploy script), with `--no-d1` opt-out.
+- Cloudflare free-tier provider uses D1 metadata by default (auto-provisioned by `meshfs deploy`), with `--no-d1` opt-out.
 - Cloudflare free-tier provider is aligned to direct-worker runtime mode (no gateway mode in OSS path).
 - Canonical control-plane naming and runtime/provider map is defined in `docs/control-plane-architecture.md`.
 - Public docs and code under open-source licensing.

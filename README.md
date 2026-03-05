@@ -34,31 +34,32 @@ Use this path if you downloaded a prebuilt release package and do not want to bu
 
 1. Download the release archive for your OS/CPU.
 2. Extract it.
-3. Install `meshfs-client` (`meshfs-client.exe` on Windows) into your `PATH`.
+3. Install `meshfs` (`meshfs.exe` on Windows) into your `PATH`.
 4. Verify:
 
 ```bash
-meshfs-client --help
+meshfs --help
 ```
 
 ### Set up Cloudflare free tier server
 
-If your release package includes deployment scripts, run from the package root:
+From release package root (or repository root), run:
 
 ```bash
-./scripts/deploy-provider.sh \
-  --provider cloudflare-workers-free-tier \
+meshfs deploy cloudflare-workers-free-tier \
   --token <CLOUDFLARE_API_TOKEN>
 ```
+
+This command uses a prebuilt worker bundle if available at:
+
+- `deploy/providers/cloudflare-workers-free-tier/worker-bundle/`
 
 Then use the deployed endpoint as your client server URL:
 
 ```bash
-meshfs-client --server https://<your-worker>.workers.dev login
-meshfs-client --server https://<your-worker>.workers.dev sync --target ./meshfs-mirror
+meshfs --server https://<your-worker>.workers.dev login
+meshfs --server https://<your-worker>.workers.dev sync --target ./meshfs-mirror
 ```
-
-If your release package does not include scripts, clone this repository and run the same deploy command from the repository root.
 
 Cloudflare token permissions required for free-tier setup:
 - Account: `Workers Scripts:Edit`
@@ -72,9 +73,9 @@ Cloudflare token permissions required for free-tier setup:
 ### Prerequisites
 
 - Rust stable toolchain (`cargo`, `rustup`).
-- For Cloudflare Worker deployment only:
+- Optional for Cloudflare Worker deployment only:
+  - Needed when you use `--build-worker-local` (no prebuilt bundle available).
   - WebAssembly build target `wasm32-unknown-unknown`.
-  - This is the Rust compilation target used to build Worker-compatible Wasm binaries.
   - Install with:
 
 ```bash
@@ -87,7 +88,7 @@ From repository root:
 
 ```bash
 cargo install --path crates/meshfs-control-plane
-cargo install --path crates/meshfs-client
+cargo install --path crates/meshfs
 ```
 
 Or run directly from source without installing:
@@ -109,7 +110,7 @@ Default bind address: `127.0.0.1:8787`
 ### 2) Login from client
 
 ```bash
-cargo run -p meshfs-client -- login --auto-activate
+cargo run -p meshfs -- login --auto-activate
 ```
 
 Client local state:
@@ -120,13 +121,13 @@ Client local state:
 One-shot sync:
 
 ```bash
-cargo run -p meshfs-client -- sync --once --target ./meshfs-mirror
+cargo run -p meshfs -- sync --once --target ./meshfs-mirror
 ```
 
 Continuous sync:
 
 ```bash
-cargo run -p meshfs-client -- sync --target ./meshfs-mirror
+cargo run -p meshfs -- sync --target ./meshfs-mirror
 ```
 
 ## Filesystem Mount (FUSE)
@@ -149,7 +150,7 @@ macOS prerequisites:
 Mount command:
 
 ```bash
-cargo run -p meshfs-client --features fuse -- mount \
+cargo run -p meshfs --features fuse -- mount \
   --remote http://127.0.0.1:8787 \
   --target ./meshfs-mount
 ```
@@ -164,8 +165,7 @@ Optional flags:
 One command:
 
 ```bash
-./scripts/deploy-provider.sh \
-  --provider cloudflare-workers-free-tier \
+meshfs deploy cloudflare-workers-free-tier \
   --token <CLOUDFLARE_API_TOKEN>
 ```
 
@@ -173,22 +173,29 @@ Default behavior:
 - deploys Rust/Wasm Worker runtime (`meshfs-control-plane-runtime-cloudflare-workers`),
 - auto creates/reuses D1 metadata database,
 - auto creates/reuses R2 object bucket,
-- runs Wrangler through `npx` (no local `npm install` required).
+- uploads worker modules directly through Cloudflare API (no `wrangler` required).
+- uses prebuilt bundle from `deploy/providers/cloudflare-workers-free-tier/worker-bundle/` when present.
 
 Common options:
 
 ```bash
 # custom D1 name
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <TOKEN> --d1-database-name <DB_NAME>
+meshfs deploy cloudflare-workers-free-tier --token <TOKEN> --d1-database-name <DB_NAME>
 
 # custom R2 bucket
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <TOKEN> --r2-bucket-name <BUCKET_NAME>
+meshfs deploy cloudflare-workers-free-tier --token <TOKEN> --r2-bucket-name <BUCKET_NAME>
 
 # disable D1
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <TOKEN> --no-d1
+meshfs deploy cloudflare-workers-free-tier --token <TOKEN> --no-d1
 
 # disable R2
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <TOKEN> --no-r2
+meshfs deploy cloudflare-workers-free-tier --token <TOKEN> --no-r2
+
+# use custom prebuilt worker bundle directory
+meshfs deploy cloudflare-workers-free-tier --token <TOKEN> --worker-bundle <BUNDLE_DIR>
+
+# fallback to local worker build when prebuilt bundle is missing
+meshfs deploy cloudflare-workers-free-tier --token <TOKEN> --build-worker-local
 ```
 
 Required Cloudflare token permissions:
@@ -197,6 +204,9 @@ Required Cloudflare token permissions:
 - User: `User Details:Read` (if `--account-id` is not provided)
 - Account: `D1:Edit` (unless using `--no-d1`)
 - Account: `Workers R2 Storage:Edit` (unless using `--no-r2`)
+
+End-user walkthrough (client + first deployment):
+- [`docs/user-guide.md`](docs/user-guide.md)
 
 ## Native Server Configuration
 
@@ -254,21 +264,59 @@ Main environment variables:
 ```bash
 cargo fmt --all
 cargo check
-cargo test
+cargo test --workspace --exclude meshfs-integration-tests
+```
+
+Core integration tests (requires built binaries):
+
+```bash
+cargo build -p meshfs -p meshfs-control-plane
+MESHFS_TEST_CLIENT_BIN=target/debug/meshfs \
+MESHFS_TEST_SERVER_BIN=target/debug/meshfs-control-plane \
+cargo test -p meshfs-integration-tests --test core -- --nocapture
+```
+
+Linux MinIO integration:
+
+```bash
+MESHFS_TEST_ENABLE_MINIO=1 \
+MESHFS_TEST_MINIO_ENDPOINT=http://127.0.0.1:9000 \
+MESHFS_TEST_MINIO_ACCESS_KEY=minioadmin \
+MESHFS_TEST_MINIO_SECRET_KEY=minioadmin \
+MESHFS_TEST_MINIO_BUCKET=meshfs-int \
+MESHFS_TEST_CLIENT_BIN=target/debug/meshfs \
+MESHFS_TEST_SERVER_BIN=target/debug/meshfs-control-plane \
+cargo test -p meshfs-integration-tests --test minio_s3 -- --nocapture
 ```
 
 Coverage summary:
 
 ```bash
-cargo llvm-cov --workspace --summary-only
+cargo llvm-cov --workspace --exclude meshfs-integration-tests --summary-only
 ```
 
 Generate LCOV:
 
 ```bash
 mkdir -p target/coverage
-cargo llvm-cov --workspace --lcov --output-path target/coverage/lcov.info
+cargo llvm-cov --workspace --exclude meshfs-integration-tests --lcov --output-path target/coverage/lcov.info
 ```
+
+CI workflows:
+- `.github/workflows/ci-pr.yml`
+- `.github/workflows/ci-heavy.yml`
+- `.github/workflows/ci-coverage.yml`
+
+## Release Automation
+
+GitHub release automation is defined at:
+
+- `.github/workflows/release.yml`
+
+When a tag like `v0.1.0` is pushed, the workflow:
+- builds `meshfs` binaries for Linux/macOS/Windows,
+- builds Cloudflare worker prebuilt bundle (`index.js` + `index_bg.wasm`),
+- packages the bundle into release artifacts and embeds it into each platform package.
 
 ## Current OSS Constraints
 
@@ -279,12 +327,18 @@ cargo llvm-cov --workspace --lcov --output-path target/coverage/lcov.info
 
 ## More Docs
 
+- User guide (client + first server deployment):
+  - [`docs/user-guide.md`](docs/user-guide.md)
+- Provider planning and review map:
+  - [`docs/provider-user-guide.md`](docs/provider-user-guide.md)
 - Architecture and naming:
   - [`docs/control-plane-architecture.md`](docs/control-plane-architecture.md)
 - Deployment provider map:
   - [`docs/deployment-providers.md`](docs/deployment-providers.md)
 - OSS vs commercial scope:
   - [`docs/editions.md`](docs/editions.md)
+- Name reservation playbook (Chinese):
+  - [`docs/meshfs-name-reservation-playbook.zh-CN.md`](docs/meshfs-name-reservation-playbook.zh-CN.md)
 
 ## License
 

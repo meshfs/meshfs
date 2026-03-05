@@ -61,7 +61,7 @@ It is temporary and focused on execution + verification.
 
 - New unit tests added for all new core behaviors in this document.
 - `cargo test` passes for workspace.
-- Deployment script help/syntax checks pass.
+- Deployment command help/syntax checks pass.
 
 ## Status
 

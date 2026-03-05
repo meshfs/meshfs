@@ -5,3 +5,5 @@
 /deploy/providers/*/wrangler.generated.jsonc
 /deploy/providers/*/.wrangler
 meshfs-control-plane.db
+
+/docs/tmp/

@@ -4,7 +4,8 @@ members = [
   "crates/meshfs-store",
   "crates/meshfs-control-plane-core",
   "crates/meshfs-control-plane",
-  "crates/meshfs-client",
+  "crates/meshfs",
+  "crates/meshfs-integration-tests",
   "crates/meshfs-control-plane-runtime-cloudflare-workers",
 ]
 resolver = "2"
@@ -26,7 +27,7 @@ clap = { version = "4", features = ["derive"] }
 futures = "0.3"
 hmac = "0.12"
 http = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "blocking"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

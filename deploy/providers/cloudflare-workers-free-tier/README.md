@@ -7,23 +7,23 @@ This provider deploys the MeshFS OSS Rust direct-worker runtime to Cloudflare Wo
 From repository root:
 
 ```bash
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN>
+meshfs deploy cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN>
 ```
 
 Default behavior:
 - D1 metadata is enabled.
-- Script auto-reuses an existing D1 database named `<worker-name>-metadata` or creates it.
+- `meshfs deploy` auto-reuses an existing D1 database named `<worker-name>-metadata` or creates it.
 - R2 object storage is enabled.
-- Script auto-reuses an existing R2 bucket named `<worker-name>-objects` or creates it.
-- Script uses `npx wrangler` directly (no local `node_modules` install required).
-- Script applies `d1/schema.sql` automatically.
+- `meshfs deploy` auto-reuses an existing R2 bucket named `<worker-name>-objects` or creates it.
+- `meshfs deploy` uploads Worker modules via Cloudflare API (no `wrangler` required).
+- `meshfs deploy` applies `d1/schema.sql` automatically.
 - Worker deploys from Rust runtime crate `crates/meshfs-control-plane-runtime-cloudflare-workers`.
+- Prebuilt bundle default path: `deploy/providers/cloudflare-workers-free-tier/worker-bundle/`.
 
 Deploy with custom D1 database name:
 
 ```bash
-./scripts/deploy-provider.sh \
-  --provider cloudflare-workers-free-tier \
+meshfs deploy cloudflare-workers-free-tier \
   --token <CLOUDFLARE_API_TOKEN> \
   --d1-database-name <DATABASE_NAME>
 ```
@@ -31,8 +31,7 @@ Deploy with custom D1 database name:
 Deploy with custom R2 bucket name:
 
 ```bash
-./scripts/deploy-provider.sh \
-  --provider cloudflare-workers-free-tier \
+meshfs deploy cloudflare-workers-free-tier \
   --token <CLOUDFLARE_API_TOKEN> \
   --r2-bucket-name <BUCKET_NAME>
 ```
@@ -40,13 +39,25 @@ Deploy with custom R2 bucket name:
 Deploy without D1:
 
 ```bash
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN> --no-d1
+meshfs deploy cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN> --no-d1
 ```
 
 Deploy without R2:
 
 ```bash
-./scripts/deploy-provider.sh --provider cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN> --no-r2
+meshfs deploy cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN> --no-r2
+```
+
+Use custom prebuilt bundle:
+
+```bash
+meshfs deploy cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN> --worker-bundle <BUNDLE_DIR>
+```
+
+Fallback to local worker build:
+
+```bash
+meshfs deploy cloudflare-workers-free-tier --token <CLOUDFLARE_API_TOKEN> --build-worker-local
 ```
 
 ## Required token permissions
